@@ -1,0 +1,990 @@
+<!doctype html>    
+<html lang="ar" dir="rtl">    
+<head>    
+  <meta charset="utf-8">    
+  <meta name="viewport" content="width=device-width, initial-scale=1">    
+  <title>إدارة مصاريف البيت</title>    
+    
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">    
+    
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">    
+    
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">    
+    
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>    
+    
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>    
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>    
+    
+  <style>    
+    :root {    
+      --primary-color: #198754;    
+      --primary-hover: #157347;    
+      --danger-color: #dc3545;    
+      --warning-color: #ffc107;    
+      --light-bg: #f8f9fa;    
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.1);    
+    }    
+    
+    body {    
+      background-color: var(--light-bg);    
+      font-family: 'Cairo', sans-serif;    
+    }    
+    .card {    
+      border: none;    
+      border-radius: 15px;    
+      box-shadow: var(--card-shadow);    
+      transition: transform 0.2s;    
+    }    
+    .card:hover {    
+      transform: translateY(-2px);    
+    }    
+    .btn-green {    
+      background-color: var(--primary-color);    
+      color: #fff;    
+    }    
+    .btn-green:hover {    
+      background-color: var(--primary-hover);    
+      color: #fff; /* تأكد من بقاء اللون أبيض عند التحويم */    
+    }    
+    .expense-item {    
+      background-color: #f1f3f4;    
+      border-radius: 10px;    
+      padding: 8px 10px;    
+      margin-bottom: 6px;    
+      display: flex;    
+      justify-content: space-between;    
+      align-items: center;    
+      transition: background-color 0.2s;    
+    }    
+    .expense-item:hover {    
+      background-color: #e8eaed;    
+    }    
+    .progress {    
+      height: 8px;    
+      margin: 5px 0;    
+    }    
+    .budget-summary {    
+      background: linear-gradient(135deg, #198754, #20c997);    
+      color: white;    
+      border-radius: 10px;    
+      padding: 15px;    
+      margin-bottom: 15px;    
+    }    
+    .empty-state {    
+      text-align: center;    
+      padding: 30px;    
+      color: #6c757d;    
+    }    
+    .empty-state i {    
+      font-size: 3rem;    
+      margin-bottom: 10px;    
+      opacity: 0.5;    
+    }    
+    .budget-actions {    
+      display: flex;    
+      gap: 5px;    
+      margin-top: 10px;    
+    }    
+    .budget-actions button {    
+      flex: 1;    
+    }    
+    .expense-date {    
+      font-size: 0.8rem;    
+      color: #6c757d;    
+    }    
+    .category-badge {    
+      font-size: 0.7rem;    
+      padding: 2px 6px;    
+      border-radius: 10px;    
+      background-color: #e9ecef;    
+    }    
+    .chart-container {    
+      height: 200px;    
+      margin: 15px 0;    
+    }    
+    .nav-tabs .nav-link.active {    
+      background-color: var(--primary-color);    
+      color: white;    
+      border: none;    
+    }    
+    .nav-tabs .nav-link {    
+      color: var(--primary-color);    
+    }    
+    
+    /* إصلاح صغير لتنسيق البحث */    
+    #expenseSearch {    
+        border-top-left-radius: 0.375rem !important; /* لضمان التنسيق في RTL */    
+        border-bottom-left-radius: 0.375rem !important; /* لضمان التنسيق في RTL */    
+        border-top-right-radius: 0 !important;    
+        border-bottom-right-radius: 0 !important;    
+    }    
+  </style>    
+</head>    
+<body>    
+  <div class="container py-4">    
+    <div class="text-center mb-4">    
+      <h2 class="fw-bold text-success">💰 إدارة مصاريف البيت</h2>    
+      <p class="text-muted">تطبيق بسيط لإدارة ميزانية المنزل وتتبع المصروفات</p>    
+    </div>    
+    
+    <div class="card p-3 mb-4">    
+      <h5 class="fw-bold mb-3"><i class="bi bi-wallet2"></i> إنشاء ميزانية جديدة</h5>    
+      <div class="row g-2">    
+        <div class="col-md-4">    
+          <select id="budgetType" class="form-select">    
+            <option value="يومي">يومي</option>    
+            <option value="أسبوعي">أسبوعي</option>    
+            <option value="شهري" selected>شهري</option>    
+          </select>    
+        </div>    
+        <div class="col-md-4">    
+          <input id="budgetLabel" type="text" class="form-control" placeholder="اسم الميزانية (مثلاً: أكتوبر 2025)">    
+        </div>    
+        <div class="col-md-4">    
+          <input id="budgetTotal" type="number" class="form-control" placeholder="المبلغ الكلي (ج.س)">    
+        </div>    
+      </div>    
+      <button class="btn btn-green w-100 mt-3" onclick="addBudget()">    
+        <i class="bi bi-check-circle"></i> حفظ الميزانية    
+      </button>    
+    </div>    
+    
+    <div class="card p-3 mb-4">    
+      <div class="d-flex justify-content-between align-items-center mb-3">    
+        <h5 class="fw-bold mb-0"><i class="bi bi-list-ul"></i> الميزانيات</h5>    
+        <div>    
+          <button class="btn btn-sm btn-outline-secondary" onclick="toggleView()" id="toggleViewBtn">    
+            <i class="bi bi-grid"></i> عرض الشبكة    
+          </button>    
+          <button class="btn btn-sm btn-outline-danger ms-2" onclick="clearAllData()">    
+            <i class="bi bi-trash"></i> مسح الكل    
+          </button>    
+        </div>    
+      </div>    
+      <div id="budgetsList" class="row"></div>    
+    </div>    
+    
+    <div class="card p-3 mb-4 d-none" id="expensesCard">    
+      <div class="d-flex justify-content-between align-items-center mb-3">    
+        <h5 id="currentBudgetName" class="fw-bold mb-0"></h5>    
+        <button class="btn btn-sm btn-outline-danger" onclick="closeBudget()">    
+          <i class="bi bi-x-circle"></i> إغلاق    
+        </button>    
+      </div>    
+          
+      <div class="budget-summary">    
+        <div class="row text-center">    
+          <div class="col-4">    
+            <h6>الميزانية</h6>    
+            <h4 id="budgetTotalDisplay">0 ج.س</h4>    
+          </div>    
+          <div class="col-4">    
+            <h6>المصروفات</h6>    
+            <h4 id="totalExpensesDisplay">0 ج.س</h4>    
+          </div>    
+          <div class="col-4">    
+            <h6>المتبقي</h6>    
+            <h4 id="remainingDisplay">0 ج.س</h4>    
+          </div>    
+        </div>    
+        <div class="progress mt-2">    
+          <div id="budgetProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>    
+        </div>    
+        <div class="text-center mt-2 small" id="budgetPercentage">0%</div>    
+      </div>    
+    
+      <ul class="nav nav-tabs mb-3" id="expensesTabs">    
+        <li class="nav-item">    
+          <a class="nav-link active" data-bs-toggle="tab" href="#addExpenseTab">إضافة مصروف</a>    
+        </li>    
+        <li class="nav-item">    
+          <a class="nav-link" data-bs-toggle="tab" href="#expensesListTab">قائمة المصروفات</a>    
+        </li>    
+        <li class="nav-item">    
+          <a class="nav-link" data-bs-toggle="tab" href="#chartsTab">الإحصائيات</a>    
+        </li>    
+      </ul>    
+    
+      <div class="tab-content">    
+        <div class="tab-pane fade show active" id="addExpenseTab">    
+          <div class="row g-2 mb-3">    
+            <div class="col-md-6">    
+              <div class="input-group">    
+                <span class="input-group-text"><i class="bi bi-pencil"></i></span>    
+                <input id="expenseName" type="text" class="form-control" placeholder="اسم المصروف">    
+              </div>    
+            </div>    
+            <div class="col-md-4">    
+              <div class="input-group">    
+                <span class="input-group-text"><i class="bi bi-cash"></i></span>    
+                <input id="expenseAmount" type="number" class="form-control" placeholder="المبلغ">    
+              </div>    
+            </div>    
+            <div class="col-md-2">    
+              <select id="expenseCategory" class="form-select">    
+                <option value="عام">عام</option>    
+                <option value="طعام">طعام</option>    
+                <option value="مواصلات">مواصلات</option>    
+                <option value="تسوق">تسوق</option>    
+                <option value="فواتير">فواتير</option>    
+                <option value="ترفيه">ترفيه</option>    
+                <option value="صحة">صحة</option>    
+                <option value="أخرى">أخرى</option>    
+              </select>    
+            </div>    
+          </div>    
+          <button class="btn btn-green w-100" onclick="addExpense()">    
+            <i class="bi bi-plus-circle"></i> إضافة مصروف    
+          </button>    
+        </div>    
+    
+        <div class="tab-pane fade" id="expensesListTab">    
+          <div class="d-flex justify-content-between align-items-center mb-3">    
+            <h6 class="fw-bold mb-0">المصروفات:</h6>    
+            <div class="input-group w-auto">    
+              <input type="text" class="form-control form-control-sm" placeholder="بحث..." id="expenseSearch">    
+              <button class="btn btn-outline-secondary btn-sm" type="button" onclick="filterExpenses()">    
+                <i class="bi bi-search"></i>    
+              </button>    
+            </div>    
+          </div>    
+          <div id="expensesList"></div>    
+        </div>    
+    
+        <div class="tab-pane fade" id="chartsTab">    
+          <div class="chart-container">    
+            <canvas id="expenseChartCanvas"></canvas>    
+          </div>    
+          <div class="text-center">    
+            <button class="btn btn-outline-success me-2" onclick="generateReport()">    
+              <i class="bi bi-file-earmark-pdf"></i> توليد تقرير PDF    
+            </button>    
+            <button class="btn btn-outline-primary" onclick="exportToExcel()">    
+              <i class="bi bi-file-earmark-excel"></i> تصدير إلى Excel    
+            </button>    
+          </div>    
+        </div>    
+      </div>    
+    </div>    
+  </div>    
+    
+  <div class="modal fade" id="editBudgetModal" tabindex="-1">    
+    <div class="modal-dialog">    
+      <div class="modal-content">    
+        <div class="modal-header">    
+          <h5 class="modal-title">تعديل الميزانية</h5>    
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>    
+        </div>    
+        <div class="modal-body">    
+          <div class="mb-3">    
+            <label for="editBudgetLabel" class="form-label">اسم الميزانية</label>    
+            <input type="text" class="form-control" id="editBudgetLabel">    
+          </div>    
+          <div class="mb-3">    
+            <label for="editBudgetTotal" class="form-label">المبلغ الكلي</label>    
+            <input type="number" class="form-control" id="editBudgetTotal">    
+          </div>    
+        </div>    
+        <div class="modal-footer">    
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>    
+          <button type="button" class="btn btn-green" onclick="saveBudgetEdit()">حفظ التغييرات</button>    
+        </div>    
+      </div>    
+    </div>    
+  </div>    
+    
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>    
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>    
+    
+  <script>    
+    let budgets = JSON.parse(localStorage.getItem('budgets')) || [];    
+    let currentBudget = null;    
+    let isGridView = false;    
+    let expenseChart = null;    
+    
+    // تهيئة التطبيق    
+    document.addEventListener('DOMContentLoaded', function() {    
+      renderBudgets();    
+          
+      // إضافة مستمعي الأحداث    
+      document.getElementById('expenseSearch').addEventListener('input', filterExpenses);    
+      document.getElementById('expenseAmount').addEventListener('keypress', function(e) {    
+        if (e.key === 'Enter') addExpense();    
+      });    
+          
+      // مستمع للتبديل بين التبويبات لتحديث الرسم البياني    
+      const chartTab = document.querySelector('a[href="#chartsTab"]');    
+      if (chartTab) {    
+          chartTab.addEventListener('shown.bs.tab', function (e) {    
+              if (currentBudget) {    
+                  updateExpenseChart();    
+              }    
+          });    
+      }    
+    });    
+    
+    function saveData() {    
+      localStorage.setItem('budgets', JSON.stringify(budgets));    
+    }    
+    
+    function addBudget() {    
+      const type = document.getElementById('budgetType').value;    
+      const label = document.getElementById('budgetLabel').value.trim();    
+      const total = parseFloat(document.getElementById('budgetTotal').value);    
+    
+      if (!label || isNaN(total) || total <= 0) {    
+        Swal.fire('خطأ', 'الرجاء إدخال اسم ومبلغ صحيح', 'error');    
+        return;    
+      }    
+    
+      // التحقق من عدم وجود ميزانية بنفس الاسم    
+      if (budgets.some(b => b.label === label)) {    
+        Swal.fire('خطأ', 'يوجد ميزانية بنفس الاسم مسبقاً', 'error');    
+        return;    
+      }    
+    
+      budgets.push({     
+        id: Date.now(),     
+        type,     
+        label,     
+        total,     
+        expenses: [],    
+        createdAt: new Date().toISOString()    
+      });    
+          
+      saveData();    
+      document.getElementById('budgetLabel').value = '';    
+      document.getElementById('budgetTotal').value = '';    
+      Swal.fire('تم الحفظ', 'تمت إضافة الميزانية بنجاح ✅', 'success');    
+      renderBudgets();    
+    }    
+    
+    function renderBudgets() {    
+      const list = document.getElementById('budgetsList');    
+      list.innerHTML = '';    
+    
+      if (budgets.length === 0) {    
+        list.innerHTML = `    
+          <div class="empty-state">    
+            <i class="bi bi-wallet2"></i>    
+            <p>لا توجد ميزانيات بعد.</p>    
+            <p class="small">ابدأ بإنشاء ميزانية جديدة لإدارة مصروفاتك</p>    
+          </div>`;    
+        return;    
+      }    
+    
+      budgets.forEach(b => {    
+        const totalExpenses = b.expenses.reduce((s, e) => s + e.amount, 0);    
+        const remaining = b.total - totalExpenses;    
+        // يجب أن تكون النسبة بناءً على (المصروفات / الإجمالي)    
+        const percentage = Math.min(100, Math.round((totalExpenses / b.total) * 100));     
+            
+        const budgetCard = `    
+          <div class="${isGridView ? 'col-md-6 col-lg-4 mb-3' : 'col-12 mb-3'}">    
+            <div class="card h-100">    
+              <div class="card-body">    
+                <div class="d-flex justify-content-between align-items-start">    
+                  <div>    
+                    <h5 class="card-title">${b.label}</h5>    
+                    <span class="badge bg-secondary">${b.type}</span>    
+                    <div class="mt-2">    
+                      <div class="progress">    
+                        <div class="progress-bar ${percentage > 80 ? 'bg-danger' : percentage > 50 ? 'bg-warning' : 'bg-success'}"     
+                             role="progressbar" style="width: ${percentage}%"></div>    
+                      </div>    
+                      <div class="small text-muted mt-1">${percentage}% مستخدم</div>    
+                    </div>    
+                  </div>    
+                  <div class="dropdown">    
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">    
+                      <i class="bi bi-three-dots"></i>    
+                    </button>    
+                    <ul class="dropdown-menu">    
+                      <li><a class="dropdown-item" href="#" onclick="openBudget(${b.id})"><i class="bi bi-eye"></i> فتح</a></li>    
+                      <li><a class="dropdown-item" href="#" onclick="editBudget(${b.id})"><i class="bi bi-pencil"></i> تعديل</a></li>    
+                      <li><hr class="dropdown-divider"></li>    
+                      <li><a class="dropdown-item text-danger" href="#" onclick="deleteBudget(${b.id})"><i class="bi bi-trash"></i> حذف</a></li>    
+                    </ul>    
+                  </div>    
+                </div>    
+                <div class="row text-center mt-3">    
+                  <div class="col-4">    
+                    <div class="small text-muted">الميزانية</div>    
+                    <div class="fw-bold">${b.total.toLocaleString()} ج.س</div>    
+                  </div>    
+                  <div class="col-4">    
+                    <div class="small text-muted">المصروفات</div>    
+                    <div class="fw-bold text-danger">${totalExpenses.toLocaleString()} ج.س</div>    
+                  </div>    
+                  <div class="col-4">    
+                    <div class="small text-muted">المتبقي</div>    
+                    <div class="fw-bold ${remaining < 0 ? 'text-danger' : 'text-success'}">${remaining.toLocaleString()} ج.س</div>    
+                  </div>    
+                </div>    
+                <div class="budget-actions">    
+                  <button class="btn btn-sm btn-outline-primary" onclick="openBudget(${b.id})">    
+                    <i class="bi bi-eye"></i> فتح    
+                  </button>    
+                  <button class="btn btn-sm btn-outline-success" onclick="generateReport(${b.id})">    
+                    <i class="bi bi-file-earmark-pdf"></i> تقرير    
+                  </button>    
+                </div>    
+              </div>    
+            </div>    
+          </div>`;    
+            
+        list.innerHTML += budgetCard;    
+      });    
+    }    
+    
+    function toggleView() {    
+      isGridView = !isGridView;    
+      const btn = document.getElementById('toggleViewBtn');    
+      btn.innerHTML = isGridView ?     
+        '<i class="bi bi-list-ul"></i> عرض القائمة' :     
+        '<i class="bi bi-grid"></i> عرض الشبكة';    
+      renderBudgets();    
+    }    
+    
+    function openBudget(id) {    
+      currentBudget = budgets.find(b => b.id === id);    
+      document.getElementById('expensesCard').classList.remove('d-none');    
+      document.getElementById('currentBudgetName').innerText = currentBudget.label;    
+      updateBudgetUI();    
+          
+      // تفعيل التبويب الأول    
+      const firstTabLink = document.querySelector('#expensesTabs a[href="#addExpenseTab"]');    
+      if (firstTabLink) new bootstrap.Tab(firstTabLink).show();    
+    }    
+    
+    function closeBudget() {    
+      currentBudget = null;    
+      document.getElementById('expensesCard').classList.add('d-none');    
+      if (expenseChart) {    
+        expenseChart.destroy();    
+        expenseChart = null;    
+      }    
+      renderBudgets(); // لتحديث حالة الميزانيات بعد العودة    
+    }    
+    
+    function updateBudgetUI() {    
+      if (!currentBudget) return;    
+          
+      const totalExpenses = currentBudget.expenses.reduce((s, e) => s + e.amount, 0);    
+      const remaining = currentBudget.total - totalExpenses;    
+      const percentage = Math.min(100, Math.round((totalExpenses / currentBudget.total) * 100));    
+          
+      // تحديث الملخص    
+      document.getElementById('budgetTotalDisplay').textContent = `${currentBudget.total.toLocaleString()} ج.س`;    
+      document.getElementById('totalExpensesDisplay').textContent = `${totalExpenses.toLocaleString()} ج.س`;    
+      document.getElementById('remainingDisplay').textContent = `${remaining.toLocaleString()} ج.س`;    
+      document.getElementById('budgetPercentage').textContent = `${percentage}% مستخدم`;    
+          
+      // تحديث شريط التقدم    
+      const progressBar = document.getElementById('budgetProgress');    
+      progressBar.style.width = `${percentage}%`;    
+      progressBar.className = `progress-bar ${percentage > 80 ? 'bg-danger' : percentage > 50 ? 'bg-warning' : 'bg-success'}`;    
+          
+      // تحديث قائمة المصروفات    
+      renderExpensesList();    
+          
+      // تحديث الرسم البياني (سيتحدث فقط عند فتح التبويب)    
+      // updateExpenseChart();     
+    }    
+    
+    function renderExpensesList() {    
+      const list = document.getElementById('expensesList');    
+      list.innerHTML = '';    
+    
+      if (!currentBudget || currentBudget.expenses.length === 0) {    
+        list.innerHTML = `    
+          <div class="empty-state">    
+            <i class="bi bi-receipt"></i>    
+            <p>لا توجد مصروفات مسجلة بعد.</p>    
+          </div>`;    
+        return;    
+      }    
+    
+      currentBudget.expenses.forEach((e, i) => {    
+        // لتجنب خطأ التاريخ إذا كان غير محدد    
+        const date = e.date ? new Date(e.date).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : 'غير محدد';    
+        list.innerHTML += `    
+          <div class="expense-item">    
+            <div>    
+              <div class="d-flex align-items-center">    
+                <span class="me-2">${e.name}</span>    
+                <span class="category-badge">${e.category || 'عام'}</span>    
+              </div>    
+              <div class="expense-date">${date}</div>    
+            </div>    
+            <div class="d-flex align-items-center">    
+              <span class="text-danger fw-bold me-2">${e.amount.toLocaleString()} ج.س</span>    
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteExpense(${i})">    
+                <i class="bi bi-trash"></i>    
+              </button>    
+            </div>    
+          </div>`;    
+      });    
+    }    
+    
+    function filterExpenses() {    
+      const searchTerm = document.getElementById('expenseSearch').value.toLowerCase();    
+      const expenseItems = document.querySelectorAll('#expensesList .expense-item');    
+          
+      expenseItems.forEach(item => {    
+        const text = item.textContent.toLowerCase();    
+        item.style.display = text.includes(searchTerm) ? 'flex' : 'none';    
+      });    
+    }    
+    
+    function addExpense() {    
+      if (!currentBudget) return;    
+    
+      const name = document.getElementById('expenseName').value.trim();    
+      const amount = parseFloat(document.getElementById('expenseAmount').value);    
+      const category = document.getElementById('expenseCategory').value;    
+    
+      if (!name || isNaN(amount) || amount <= 0) {    
+        Swal.fire('خطأ', 'الرجاء إدخال اسم ومبلغ صحيح', 'error');    
+        return;    
+      }    
+    
+      // التحقق من عدم تجاوز الميزانية    
+      const totalExpenses = currentBudget.expenses.reduce((s, e) => s + e.amount, 0);    
+      if (totalExpenses + amount > currentBudget.total) {    
+        // يمكنك إما منع الإضافة أو تحذيره    
+        Swal.fire('تحذير', `هذا المصروف سيتجاوز الميزانية المحددة بـ ${((totalExpenses + amount) - currentBudget.total).toLocaleString()} ج.س`, 'warning');    
+        // إذا أردت المنع: return;    
+      }    
+    
+      currentBudget.expenses.push({     
+        name,     
+        amount,     
+        category,    
+        date: new Date().toISOString()    
+      });    
+          
+      saveData();    
+      document.getElementById('expenseName').value = '';    
+      document.getElementById('expenseAmount').value = '';    
+      updateBudgetUI();    
+      Swal.fire('تمت الإضافة', '', 'success');    
+          
+      // نقل المستخدم لقائمة المصروفات بعد الإضافة (اختياري)    
+      const listTabLink = document.querySelector('#expensesTabs a[href="#expensesListTab"]');    
+      if (listTabLink) new bootstrap.Tab(listTabLink).show();    
+    }    
+    
+    function deleteExpense(index) {    
+      Swal.fire({    
+        title: 'هل أنت متأكد؟',    
+        text: "لن تتمكن من التراجع عن هذا الإجراء!",    
+        icon: 'warning',    
+        showCancelButton: true,    
+        confirmButtonColor: '#d33',    
+        cancelButtonColor: '#6c757d',    
+        confirmButtonText: 'نعم، احذف!',    
+        cancelButtonText: 'إلغاء'    
+      }).then((result) => {    
+        if (result.isConfirmed) {    
+          currentBudget.expenses.splice(index, 1);    
+          saveData();    
+          updateBudgetUI();    
+          Swal.fire('تم الحذف ✅', '', 'success');    
+        }    
+      });    
+    }    
+    
+    function editBudget(id) {    
+      const budget = budgets.find(b => b.id === id);    
+      if (!budget) return;    
+          
+      document.getElementById('editBudgetLabel').value = budget.label;    
+      document.getElementById('editBudgetTotal').value = budget.total;    
+          
+      // تخزين معرف الميزانية الحالية للتعديل    
+      const modalElement = document.getElementById('editBudgetModal');    
+      modalElement.dataset.budgetId = id;    
+          
+      const modal = new bootstrap.Modal(modalElement);    
+      modal.show();    
+    }    
+    
+    function saveBudgetEdit() {    
+      const modalElement = document.getElementById('editBudgetModal');    
+      const budgetId = parseInt(modalElement.dataset.budgetId);    
+      const budget = budgets.find(b => b.id === budgetId);    
+      if (!budget) return;    
+          
+      const newLabel = document.getElementById('editBudgetLabel').value.trim();    
+      const newTotal = parseFloat(document.getElementById('editBudgetTotal').value);    
+          
+      if (!newLabel || isNaN(newTotal) || newTotal <= 0) {    
+        Swal.fire('خطأ', 'الرجاء إدخال اسم ومبلغ صحيح', 'error');    
+        return;    
+      }    
+          
+      // التحقق من عدم وجود ميزانية بنفس الاسم (باستثناء الميزانية الحالية)    
+      if (budgets.some(b => b.label === newLabel && b.id !== budgetId)) {    
+        Swal.fire('خطأ', 'يوجد ميزانية بنفس الاسم مسبقاً', 'error');    
+        return;    
+      }    
+          
+      // التحقق من عدم تجاوز المصروفات للإجمالي الجديد    
+      const totalExpenses = budget.expenses.reduce((s, e) => s + e.amount, 0);    
+      if (totalExpenses > newTotal) {    
+          Swal.fire('خطأ', `المبلغ الكلي الجديد (${newTotal.toLocaleString()} ج.س) أقل من إجمالي المصروفات الحالية (${totalExpenses.toLocaleString()} ج.س). يرجى زيادة المبلغ الكلي.`, 'error');    
+          return;    
+      }    
+    
+      budget.label = newLabel;    
+      budget.total = newTotal;    
+          
+      saveData();    
+          
+      // إذا كانت الميزانية المفتوحة هي نفسها التي تم تعديلها    
+      if (currentBudget && currentBudget.id === budgetId) {    
+        currentBudget = budget;    
+        updateBudgetUI();    
+      }    
+          
+      renderBudgets();    
+          
+      bootstrap.Modal.getInstance(modalElement).hide();    
+      Swal.fire('تم التعديل', 'تم تحديث الميزانية بنجاح ✅', 'success');    
+    }    
+    
+    function deleteBudget(id) {    
+      Swal.fire({    
+        title: 'هل أنت متأكد؟',    
+        text: "سيتم حذف الميزانية وجميع مصروفاتها!",    
+        icon: 'warning',    
+        showCancelButton: true,    
+        confirmButtonColor: '#d33',    
+        cancelButtonColor: '#6c757d',    
+        confirmButtonText: 'نعم، احذف!',    
+        cancelButtonText: 'إلغاء'    
+      }).then((result) => {    
+        if (result.isConfirmed) {    
+          budgets = budgets.filter(b => b.id !== id);    
+          saveData();    
+              
+          // إذا كانت الميزانية المحذوفة هي المفتوحة حالياً    
+          if (currentBudget && currentBudget.id === id) {    
+            closeBudget();    
+          }    
+              
+          renderBudgets();    
+          Swal.fire('تم الحذف ✅', 'تم حذف الميزانية بنجاح', 'success');    
+        }    
+      });    
+    }    
+    
+    function clearAllData() {    
+      Swal.fire({    
+        title: 'هل أنت متأكد؟',    
+        text: "سيتم حذف جميع الميزانيات والمصروفات! لا يمكن التراجع عن هذا الإجراء.",    
+        icon: 'warning',    
+        showCancelButton: true,    
+        confirmButtonColor: '#d33',    
+        cancelButtonColor: '#6c757d',    
+        confirmButtonText: 'نعم، احذف الكل!',    
+        cancelButtonText: 'إلغاء'    
+      }).then((result) => {    
+        if (result.isConfirmed) {    
+          budgets = [];    
+          saveData();    
+          closeBudget();    
+          renderBudgets();    
+          Swal.fire('تم المسح ✅', 'تم حذف جميع البيانات بنجاح', 'success');    
+        }    
+      });    
+    }    
+    
+    function updateExpenseChart() {    
+      const canvasElement = document.getElementById('expenseChartCanvas');    
+      if (!canvasElement) return;    
+    
+      const ctx = canvasElement.getContext('2d');    
+          
+      // إذا كان هناك رسم بياني موجود، قم بتدميره أولاً    
+      if (expenseChart) {    
+        expenseChart.destroy();    
+      }    
+          
+      // تجميع المصروفات حسب الفئة    
+      const categories = {};    
+      currentBudget.expenses.forEach(expense => {    
+        const category = expense.category || 'عام';    
+        if (!categories[category]) {    
+          categories[category] = 0;    
+        }    
+        categories[category] += expense.amount;    
+      });    
+          
+      const categoryNames = Object.keys(categories);    
+      const categoryAmounts = Object.values(categories);    
+          
+      // إنشاء الرسم البياني    
+      expenseChart = new Chart(ctx, {    
+        type: 'doughnut',    
+        data: {    
+          labels: categoryNames,    
+          datasets: [{    
+            data: categoryAmounts,    
+            backgroundColor: [    
+              '#198754', '#20c997', '#0dcaf0', '#6f42c1',     
+              '#d63384', '#fd7e14', '#ffc107', '#6c757d'    
+            ],    
+            borderWidth: 1    
+          }]    
+        },    
+        options: {    
+          responsive: true,    
+          maintainAspectRatio: false,    
+          plugins: {    
+            legend: {    
+              position: 'bottom',    
+              rtl: true, // مهم للغة العربية    
+              labels: {    
+                font: {    
+                  family: 'Cairo',    
+                }    
+              }    
+            },    
+            tooltip: {    
+              rtl: true,    
+              callbacks: {    
+                label: function(context) {    
+                  const value = context.raw;    
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);    
+                  const percentage = Math.round((value / total) * 100);    
+                  // استخدام toLocaleString() لتحسين تنسيق الأرقام    
+                  return `${context.label}: ${value.toLocaleString()} ج.س (${percentage}%)`;    
+                }    
+              },    
+              titleFont: { family: 'Cairo' },    
+              bodyFont: { family: 'Cairo' }    
+            }    
+          }    
+        }    
+      });    
+    }    
+    
+async function generateReport(budgetId = null) {    
+  const budget = budgetId ? budgets.find(b => b.id === budgetId) : currentBudget;    
+  if (!budget) {    
+    Swal.fire('خطأ', 'الرجاء اختيار ميزانية أولاً.', 'error');    
+    return;    
+  }    
+      
+  const totalExpenses = budget.expenses.reduce((s, e) => s + e.amount, 0);    
+  const remaining = budget.total - totalExpenses;    
+  const percentage = Math.min(100, Math.round((totalExpenses / budget.total) * 100));    
+      
+  // تجميع المصروفات حسب الفئة    
+  const categories = {};    
+  budget.expenses.forEach(expense => {    
+    const category = expense.category || 'عام';    
+    if (!categories[category]) {    
+      categories[category] = 0;    
+    }    
+    categories[category] += expense.amount;    
+  });    
+      
+  // إنشاء HTML للتقرير    
+  // ملاحظة: تم تعديل style لضمان ظهور الخط 'Cairo'    
+  const reportHTML = `    
+    <div id="reportContent" dir="rtl" style="font-family: 'Cairo', sans-serif; padding: 20px; background: white; width: 780px;">    
+      <h1 style="text-align: center; color: #198754; margin-bottom: 20px; font-weight: 700;">تقرير ميزانية ${budget.label}</h1>    
+          
+      <div style="margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px;">    
+        <p style="margin: 5px 0;"><strong>النوع:</strong> ${budget.type}</p>    
+        <p style="margin: 5px 0;"><strong>تاريخ الإنشاء:</strong> ${new Date(budget.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>    
+      </div>    
+          
+      <div style="margin-bottom: 30px;">    
+        <h3 style="color: #198754; border-bottom: 2px solid #198754; padding-bottom: 5px; font-weight: 700;">ملخص الميزانية</h3>    
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">    
+          <tr style="background-color: #d1e7dd;">    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700; width: 50%;">البند</th>    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700; width: 50%;">القيمة</th>    
+          </tr>    
+          <tr>    
+            <td style="border: 1px solid #ddd; padding: 10px;"><strong>المبلغ الكلي</strong></td>    
+            <td style="border: 1px solid #ddd; padding: 10px;"><strong>${budget.total.toLocaleString()} ج.س</strong></td>    
+          </tr>    
+          <tr>    
+            <td style="border: 1px solid #ddd; padding: 10px;"><strong>إجمالي المصروفات</strong></td>    
+            <td style="border: 1px solid #ddd; padding: 10px; color: #dc3545;">${totalExpenses.toLocaleString()} ج.س</td>    
+          </tr>    
+          <tr>    
+            <td style="border: 1px solid #ddd; padding: 10px;"><strong>المتبقي</strong></td>    
+            <td style="border: 1px solid #ddd; padding: 10px; color: ${remaining >= 0 ? '#198754' : '#dc3545'};">${remaining.toLocaleString()} ج.س</td>    
+          </tr>    
+          <tr>    
+            <td style="border: 1px solid #ddd; padding: 10px;"><strong>النسبة المستخدمة</strong></td>    
+            <td style="border: 1px solid #ddd; padding: 10px; color: ${percentage > 80 ? '#dc3545' : percentage > 50 ? '#ffc107' : '#198754'};">${percentage}%</td>    
+          </tr>    
+        </table>    
+      </div>    
+    
+      ${Object.keys(categories).length > 0 ? `    
+      <div style="margin-bottom: 30px;">    
+        <h3 style="color: #198754; border-bottom: 2px solid #198754; padding-bottom: 5px; font-weight: 700;">المصروفات حسب الفئة</h3>    
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">    
+          <tr style="background-color: #d1e7dd;">    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700;">الفئة</th>    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700;">المبلغ (ج.س)</th>    
+          </tr>    
+          ${Object.entries(categories).map(([category, amount]) => `    
+            <tr>    
+              <td style="border: 1px solid #ddd; padding: 10px;">${category}</td>    
+              <td style="border: 1px solid #ddd; padding: 10px;">${amount.toLocaleString()} ج.س</td>    
+            </tr>    
+          `).join('')}    
+        </table>    
+      </div>    
+      ` : ''}    
+    
+      ${budget.expenses.length > 0 ? `    
+      <div style="margin-bottom: 30px;">    
+        <h3 style="color: #198754; border-bottom: 2px solid #198754; padding-bottom: 5px; font-weight: 700;">تفاصيل المصروفات</h3>    
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">    
+          <tr style="background-color: #d1e7dd;">    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700;">اسم المصروف</th>    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700;">الفئة</th>    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700;">المبلغ (ج.س)</th>    
+            <th style="border: 1px solid #ddd; padding: 10px; text-align: right; font-weight: 700;">التاريخ</th>    
+          </tr>    
+          ${budget.expenses.map(e => `    
+            <tr>    
+              <td style="border: 1px solid #ddd; padding: 10px;">${e.name}</td>    
+              <td style="border: 1px solid #ddd; padding: 10px;">${e.category || 'عام'}</td>    
+              <td style="border: 1px solid #ddd; padding: 10px;">${e.amount.toLocaleString()} ج.س</td>    
+              <td style="border: 1px solid #ddd; padding: 10px;">${e.date ? new Date(e.date).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : 'غير محدد'}</td>    
+            </tr>    
+          `).join('')}    
+        </table>    
+      </div>    
+      ` : `    
+      <div style="margin-bottom: 30px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 5px; border: 1px dashed #ddd;">    
+        <p style="color: #6c757d; margin: 0;">لا توجد مصروفات مسجلة بعد</p>    
+      </div>    
+      `}    
+    
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">    
+        <p style="color: #888; font-size: 12px; margin: 0;">    
+          تم توليد التقرير بواسطة تطبيق إدارة مصاريف البيت في: ${new Date().toLocaleString('ar-EG')}    
+        </p>    
+      </div>    
+    </div>    
+  `;    
+      
+  // إنشاء عنصر مؤقت لعرض التقرير    
+  const tempDiv = document.createElement('div');    
+  tempDiv.innerHTML = reportHTML;    
+  tempDiv.style.position = 'absolute'; // استخدم absolute بدلاً من fixed لتجنب مشاكل العرض    
+  tempDiv.style.left = '-9999px';    
+  tempDiv.style.top = '0';    
+  tempDiv.style.background = 'white';    
+  tempDiv.style.zIndex = '9999';    
+  document.body.appendChild(tempDiv);    
+      
+  try {    
+    // إظهار loading    
+    Swal.fire({    
+      title: 'جاري إنشاء التقرير...',    
+      text: 'يرجى الانتظار، قد يستغرق الأمر بعض الثواني.',    
+      allowOutsideClick: false,    
+      didOpen: () => {    
+        Swal.showLoading();    
+      }    
+    });    
+        
+    // استخدام html2canvas لالتقاط الصورة    
+    const canvas = await html2canvas(tempDiv.querySelector('#reportContent'), {    
+      scale: 2, // لزيادة جودة الصورة    
+      useCORS: true,    
+      logging: false,    
+      width: 780, // نفس عرض الحاوية    
+    });    
+        
+    // تحويل Canvas إلى PDF    
+    const { jsPDF } = window.jspdf;    
+    const pdf = new jsPDF('p', 'mm', 'a4');    
+        
+    const imgData = canvas.toDataURL('image/png');    
+    const pdfWidth = pdf.internal.pageSize.getWidth();    
+    const pdfHeight = pdf.internal.pageSize.getHeight();    
+        
+    // حساب أبعاد الصورة مع الحفاظ على التناسب    
+    const imgProps = pdf.getImageProperties(imgData);    
+    const imgWidth = pdfWidth; // استخدام عرض الصفحة بالكامل (210mm)    
+    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;    
+    let heightLeft = imgHeight;    
+    let position = 0;    
+    const margin = 5; // هامش بسيط    
+    
+    // إضافة الصورة لعدة صفحات إذا لزم الأمر    
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);    
+    heightLeft -= pdfHeight;    
+    
+    while (heightLeft >= 0) {    
+      position = heightLeft - imgHeight;    
+      pdf.addPage();    
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);    
+      heightLeft -= pdfHeight;    
+    }    
+        
+    // حفظ الملف    
+    pdf.save(`تقرير-${budget.label}.pdf`);    
+        
+    // إغلاق loading    
+    Swal.close();    
+    Swal.fire('تم التصدير', 'تم إنشاء التقرير بنجاح ✅', 'success');    
+        
+  } catch (error) {    
+    console.error('Error generating PDF:', error);    
+    Swal.fire('خطأ', 'حدث خطأ أثناء إنشاء التقرير: ' + error.message, 'error');    
+  } finally {    
+    // تنظيف العنصر المؤقت    
+    document.body.removeChild(tempDiv);    
+  }    
+}    
+    
+    function exportToExcel() {    
+      if (!currentBudget) {    
+        Swal.fire('خطأ', 'الرجاء اختيار ميزانية أولاً.', 'error');    
+        return;    
+      }    
+          
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";    
+          
+      // رأس الجدول    
+      csvContent += "اسم المصروف,الفئة,المبلغ (ج.س),التاريخ\n";    
+          
+      // بيانات الجدول    
+      currentBudget.expenses.forEach(expense => {    
+        const date = expense.date ? new Date(expense.date).toLocaleDateString('ar-EG') : 'غير محدد';    
+        // يفضل عدم استخدام toLocaleString في ملفات CSV لأنه قد يضيف فواصل عشرية غير مرغوبة    
+        csvContent += `"${expense.name}","${expense.category || 'عام'}","${expense.amount}","${date}"\n`;    
+      });    
+          
+      // إنشاء رابط التحميل    
+      const encodedUri = encodeURI(csvContent);    
+      const link = document.createElement("a");    
+      link.setAttribute("href", encodedUri);    
+      link.setAttribute("download", `مصروفات-${currentBudget.label}.csv`);    
+      document.body.appendChild(link);    
+          
+      // تحميل الملف    
+      link.click();    
+      document.body.removeChild(link);    
+          
+      Swal.fire('تم التصدير', 'تم تصدير المصروفات إلى ملف CSV بنجاح ✅', 'success');    
+    }    
+  </script>    
+</body>    
+</html>    
